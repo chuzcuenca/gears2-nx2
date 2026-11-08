@@ -1,137 +1,131 @@
-# gears2-nx
+## Gears of War 2 NX Plus — Fork changes
 
-Gears of War 2 (Xbox 360, retail disc) running natively on the Nintendo Switch. It's not an emulator: the game's
-PowerPC code is statically recompiled to C++ with [ReXGlue](https://github.com/rexglue/rexglue-sdk), with the codegen
-manifest, function hints and generated-code fixes of
-[gears-of-war-2-pc-port](https://github.com/santiquiroz/gears-of-war-2-pc-port) (the PC port), built for the Switch as
-a homebrew NRO, and frames are drawn by a native deko3d renderer from the game's translated shaders. It follows
-[ds2-nx](https://github.com/VasilkovND/ds2-nx), the Dead Space 2 port, and the Dante's Inferno port.
+This fork extends the original project with additional configuration and gameplay selection features.
 
-> [!NOTE]
-> You need your own copy of the game (the retail disc; no title update). This repository contains no game data or
-> game code: the code, the shaders and the NRO are all made on your computer from your copy.
+### Implemented features
 
-Status: **1.0.0** — playable with the CPU overclocked (~27 fps on average, mostly 24-30 in fights); every shader of the
-game, read from the card on demand. Slow at stock clocks. What it took: [gow2/PORTING.md](gow2/PORTING.md).
+- **Level selection:** choose acts, chapters and subchapters directly from the unlock test build. Tested on a real Nintendo Switch.
+- **Language configuration:** select the game language independently from the country/region setting through `gears2-nx.toml`.
+- **Country configuration:** supports Spain and Mexico without changing the selected language.
 
-## Performance (measured on a console)
+### Language and country configuration
 
-### 1.0.0
+The game language and country/region can be configured independently using `gears2-nx.toml`.
 
-**Playable: ~27 fps on average, mostly 24-30 in fights.** Played on 2026-10-23, levels 1 and 2 (26 minutes, plus a
-4-minute run through the level 2 forest), console handheld, sys-clk at **CPU 1785 / GPU 614.4 / RAM 1600 MHz**. The
-long run had the profiler's stack sampler on (it costs ~8 %), so the numbers are a little low.
+The configuration file is located in the same directory as the NRO:
 
-| Where | Frame rate | Limit |
-| --- | --- | --- |
-| Levels 1-2, all gameplay (145 windows of 10 s) | **27.3 fps on average**, median 29.9; the slowest 10 % of the time under 24.1; under 24 fps 15 % of the time | — |
-| Quiet places, corridors | 28-30 (the game's own cap is 30) | — |
-| Fights | mostly 24-28 | GPU (it waits for the game thread only 1-6 ms per frame) |
-| Level 2 forest (1,000-1,300 draws per frame) | 26.3 on average, 24-28, short dips to 17-19 in the densest spots | GPU: 36-50 ms per frame |
-| The next part of a level streaming in | short dips to ~17 | the card's reads |
+`sdmc:/switch/gears2-nx/gears2-nx.toml`
 
-Compared with 0.8.0 at the same clocks and by the same count: 27.3 fps on average instead of 24.9, and 15 % of the
-time under 24 fps instead of 43 %. What changed: the recompiled code keeps the guest's registers in the host's
-registers between calls ([gow2/CPU_OPTIMIZATION.md](gow2/CPU_OPTIMIZATION.md)).
+Edit the `[language]` section to select your preferred settings:
 
-Clocks: overclocking the CPU to 1785 MHz is still required (the game thread is 70-90 % busy). In heavy scenes the GPU
-is now the limit, so a higher GPU clock (768 MHz) should give steadier frames there; not yet measured with 1.0.0.
-Over the runs the SoC stayed between 33 and 40 °C and the clocks never dropped.
-
-### 0.8.0 (for comparison)
-
-0.8.1 (level 2 forest with its trees, same clocks): 25.6-28.7 fps, GPU ~34 ms per frame.
-
-**Playable, but heavy: the yellow zone.** The level 1 garden and level 2 (Assault) were played on 2026-10-22, with the
-console handheld and the profiler's stack sampler off.
-
-| Clocks (sys-clk) | Frame rate | Feel |
-| --- | --- | --- |
-| CPU 1785 MHz, GPU 614.4 MHz, RAM 1600 MHz | **24.2 fps on average** (68 windows of 10 s, from 15.5 to 30.1); 28-30 when quiet; 19-24 in fights; 15-18 while the next part of the level streams in | Playable, but heavy |
-| CPU 1785 MHz, GPU 768 MHz, RAM 1600 MHz | ~25 fps on average (measured with the sampler on, which costs ~8 %) | About the same: the GPU is not the limit most of the time |
-| Stock: CPU 1020 MHz, GPU 307.2 MHz, RAM 1331.2 MHz | 12-17 fps | A slide show |
-
-Overclocking the CPU is what matters: the game thread (Unreal's main loop and UnrealScript) is 80-90 % busy in fights
-and the rest wait for it. The GPU takes 25-38 ms per frame at 614 MHz. Over the run the SoC stayed between 33 and
-43 °C. The shaders read from the card cost ~2.2 ms each the first time they are used; loading the library index
-takes 4.8 s at startup. Details: [gow2/PORTING.md](gow2/PORTING.md).
-
-Installation: [INSTALL.md](INSTALL.md). Plan and porting notes: [gow2/PORTING.md](gow2/PORTING.md).
-
-## Layout
-
-| Folder | Contents |
-| --- | --- |
-| `gow2/` | The game project: CMake, Switch glue (`src/`: app, GPU ring reader and renderer glue, shader library and create hooks, CPU), build scripts (`tools/`), hook names for the codegen (`codegen/`), our SDK patches (`sdk-patches/`) and host-tool patches (`host-patches/`) |
-| `shaders/` | Shader toolchain: extraction from the game's cooked UE3 packages, Xenos microcode -> HLSL -> SPIR-V -> shader library and DKSH cache ([shaders/README.md](shaders/README.md)) |
-| `sdk/` | **Submodule** -> [`rexglue-sdk-nx`](https://github.com/nx-mod/rexglue-sdk-nx) (`switch` branch): the ReXGlue SDK + Horizon (Switch) layer + deko3d renderer. Our changes to it live as patches in `gow2/sdk-patches/`, applied by the build script |
-| `tools/switch/cmake/` | `switch-devkitA64.cmake`, the CMake toolchain file for devkitA64 |
-
-## Build
-
-devkitA64, libnx and deko3d from [devkitPro](https://devkitpro.org) (`sudo dkp-pacman -S switch-dev deko3d`), CMake,
-Ninja, Python 3, clang and the [Vulkan SDK](https://vulkan.lunarg.com) (`dxc`, `spirv-val`). On a Mac:
-
-```sh
-git submodule update --init sdk
-python3 gow2/tools/stage_sd.py --disc "Gears of War 2.iso" -o sd/gears2-nx
-gow2/tools/build_mac.sh sd/gears2-nx/game
+```toml
+[language]
+user_language = 5
+user_country = 71
 ```
 
-`build_mac.sh` runs, in order:
+**Supported languages**
 
-1. `gow2/tools/codegen.sh`: fetches gears-of-war-2-pc-port and ReXGlue v0.10.0 at pinned commits, builds ReXGlue's
-   `rexglue` tool for the Mac, generates the C++ from your `default.xex` with the PC port's manifest and hints plus
-   `gow2/codegen/names.toml`, and applies the PC port's fixes (jump tables and unresolved branches, ARM memory
-   barriers, spin-loop pauses).
-2. `gow2/tools/shaders.sh`: expands the cooked packages (`GearGame/CookedXenon`, LZX), extracts the shader containers
-   from their shader caches and builds `gow2_shaders.dslib` and `shadercache_dksh.bin`.
-3. The NRO: `gow2/out/sw/gow2.nro`.
+| ID | Language |
+|---:|---|
+| 1 | English |
+| 3 | German |
+| 4 | French |
+| 5 | Latin American Spanish |
+| 6 | Italian |
+| 7 | Korean |
+| 8 | Traditional Chinese |
+| 11 | Polish |
+| 12 | Russian |
 
-## SD card
+**Supported countries**
 
-```
+| ID | Country |
+|---:|---|
+| 31 | Spain |
+| 71 | Mexico |
+
+Language and country are independent settings. Changing the country does not automatically change the selected language.
+
+If the configuration file is missing, cannot be parsed, or contains unsupported values, the game uses the default settings: Latin American Spanish (5) and Mexico (71).
+
+### Experimental build
+
+The first experimental release, `v0.1.0`, includes:
+
+- `gow2-unlock-test.nro`
+- `gears2-nx.toml`, configured for Latin American Spanish and Mexico by default.
+
+The original game data and shader files are not included. Users must provide their own legally obtained game files and generate the required shader files.
+
+### Current limitations
+
+Graphics compatibility is still under investigation. Some draw calls are currently discarded, and some shaders are not yet recognized by the renderer. These issues are not fixed in this release.
+
+## SD card installation
+
+Extract the release archive into the root of your Nintendo Switch SD card.
+
+The release provides the following files:
+
+```text
 sdmc:/switch/gears2-nx/
-    gears2-nx.nro             gow2/out/sw/gow2.nro
-    gow2_shaders.dslib        gow2/out/shaders/
-    shadercache_dksh.bin      gow2/out/shaders/
-    game/                     the extracted disc (default.xex, GearGame/), by stage_sd.py
-    telemetria.flag           optional, debugging only
+    gow2-unlock-test.nro
+    gears2-nx.toml
 ```
 
-Start it with title takeover (hold R while starting any game, then the Homebrew Menu): applet mode does not have the
-memory.
+### Required user-provided files
 
-## Credits
+This release does not include the original game data or shader files. Users must provide the following files from their own legally obtained copy of Gears of War 2.
 
-- **[santiquiroz](https://github.com/santiquiroz/gears-of-war-2-pc-port)** and the gow2-recomp contributors: the PC
-  port of Gears of War 2. Its codegen manifest, function hints and generated-code fixes are what makes the recompiled
-  code run; they are fetched at build time (BSD-3-Clause).
-- **[nx-mod](https://github.com/nx-mod/rexglue-sdk-nx)**: rexglue-sdk-nx, the Switch fork of the SDK, and its Halo 3
-  port, where the PM4 ring reader and the universal deko3d renderer started.
-- **[StevensND](https://github.com/StevensND/nfsmw-nx)**: NFSMW-NX: the Switch layer, deko3d renderer and shader tools.
-- **[Tom Clay](https://github.com/rexglue/rexglue-sdk)**: the ReXGlue SDK, built on the work of the
-  **[Xenia](https://xenia.jp)** team.
-- **[hedge-dev](https://github.com/hedge-dev/XenosRecomp)**: XenosRecomp.
-- **[centollOS](https://github.com/centollOS/SwitchWakerHD)**: the uam shader compiler patches.
-- **[devkitPro](https://devkitpro.org) and [switchbrew](https://github.com/switchbrew/libnx)**: devkitA64, libnx
-  and deko3d. **[Atmosphère](https://github.com/Atmosphere-NX/Atmosphere)**: the custom firmware.
-- The other libraries listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+**1. Extracted game data**
+
+Place the extracted game files in the `game/` directory:
+
+```text
+game/
+├── default.xex
+└── GearGame/
+```
+
+**2. Shader files**
+
+The following files are also required:
+
+- `gow2_shaders.dslib`
+- `shadercache_dksh.bin`
+
+These files must be generated using the project's shader extraction and build tools from the user's own game files.
+
+### Final SD card structure
+
+After providing all required files, the directory should look like this:
+
+```text
+sdmc:/switch/gears2-nx/
+├── gow2-unlock-test.nro
+├── gears2-nx.toml
+├── gow2_shaders.dslib
+├── shadercache_dksh.bin
+└── game/
+    ├── default.xex
+    └── GearGame/
+```
+
+Do not download or redistribute game data or shader files from unofficial sources.
+
+### Starting the game
+
+Start it with title takeover: hold R while starting any game, then open the Homebrew Menu.
+
+Applet mode does not provide enough memory.
 
 ## Legal
 
-Unofficial fan port with no affiliation to Microsoft or Epic Games. "Gears of War" is a trademark of Microsoft. You
-provide your own legally obtained copy of the game. No prebuilt files are distributed: the NRO contains code
-recompiled from the game and the shader library the game's own shaders, so both are made on your own computer from
-your copy ([INSTALL.md](INSTALL.md)). Running homebrew requires custom firmware, which violates Nintendo's terms and
-can get a console banned.
+Unofficial fan port with no affiliation to Microsoft or Epic Games. "Gears of War" is a trademark of Microsoft. Users must provide their own legally obtained copy of the game. No game data is included in this fork's releases. The NRO contains recompiled code and the game's shader library. Running homebrew requires custom firmware, which violates Nintendo's terms and can get a console banned.
 
-**Official source.** The only official source of this project is this repository,
-[github.com/VasilkovND/gears2-nx](https://github.com/VasilkovND/gears2-nx): its source code and its releases. I do not
-publish ready-made NRO or NSP files, and never anything with game data. Builds, NSP/XCI packages or archives offered on
-other sites (ROM sites, file hosts, forums, chats) are not made, endorsed or checked by me, may be modified, and are
-not covered by this project; distributing the game's files that way infringes its rights holders' copyright and is
-solely the responsibility of whoever does it.
+**Official upstream project.** The original project is maintained at [github.com/VasilkovND/gears2-nx](https://github.com/VasilkovND/gears2-nx). This repository is an independent fork that adds the features documented above.
 
-Source code is under the GPL-3.0 license (see [LICENSE](LICENSE)). The SDK changes are under the SDK's BSD-3-Clause
-license, and the shader translator changes under MIT.
+**Fork releases.** This fork distributes prebuilt experimental NRO files and configuration files through its GitHub Releases. No game data is included. Users must provide their own legally obtained copy of the game. Builds and archives from unofficial third-party sources are not endorsed or verified by this fork.
+
+Source code is under the GPL-3.0 license (see [LICENSE](LICENSE)). The SDK changes are under the SDK's BSD-3-Clause license, and the shader translator changes under MIT.
