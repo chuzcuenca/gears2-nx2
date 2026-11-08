@@ -24,7 +24,7 @@ user_language = 5
 user_country = 71
 ```
 
-**Supported languages**
+**Supported languages(Included from the game)**
 
 | ID | Language |
 |---:|---|
@@ -37,13 +37,6 @@ user_country = 71
 | 8 | Traditional Chinese |
 | 11 | Polish |
 | 12 | Russian |
-
-**Supported countries**
-
-| ID | Country |
-|---:|---|
-| 31 | Spain |
-| 71 | Mexico |
 
 Language and country are independent settings. Changing the country does not automatically change the selected language.
 
